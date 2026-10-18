@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Gym Record System</title>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f3f2ee;--card:#fff;--tx:#22262b;--mut:#6b7078;--ac:#f2b705;--acx:#22262b;--bd:#dedcd5;--ok:#1f7a3d;--bad:#c22b1f;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#16181b;--card:#202327;--tx:#eeece6;--mut:#9aa0a8;--acx:#16181b;--bd:#33373d;--ok:#4cc16f;--bad:#ff6b5e}}
+:root[data-theme="dark"]{--bg:#16181b;--card:#202327;--tx:#eeece6;--mut:#9aa0a8;--acx:#16181b;--bd:#33373d;--ok:#4cc16f;--bad:#ff6b5e}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font:15px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif}
+h1,h2{font-family:"Barlow Condensed","Arial Narrow",Impact,sans-serif;letter-spacing:.02em;margin:0}
+h1{font-size:30px}h2{font-size:21px;margin-bottom:10px}
+header{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;padding:14px 16px;background:var(--tx);color:var(--bg)}
+.pill{padding:5px 12px;border-radius:99px;font-weight:600;font-size:13px}
+.pill.o{background:var(--ac);color:#22262b}.pill.c{background:var(--bad);color:#fff}
+nav{display:flex;gap:6px;overflow-x:auto;padding:10px 12px;border-bottom:1px solid var(--bd);background:var(--card);position:sticky;top:env(safe-area-inset-top,0px);z-index:2}
+nav button{white-space:nowrap;background:none;border:0;padding:8px 12px;border-radius:6px;color:var(--mut);font:inherit;font-weight:600;cursor:pointer}
+nav button.on{background:var(--ac);color:#22262b}
+main{max-width:960px;margin:0 auto;padding:14px}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:14px;margin-bottom:14px}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:end}
+label{display:flex;flex-direction:column;font-size:12px;color:var(--mut);gap:3px;flex:1;min-width:110px}
+input,select{font:inherit;padding:8px;border:1px solid var(--bd);border-radius:6px;background:var(--bg);color:var(--tx);min-width:0;width:100%}
+button.b{font:inherit;font-weight:600;padding:9px 14px;border:0;border-radius:6px;background:var(--tx);color:var(--bg);cursor:pointer}
+button.b.y{background:var(--ac);color:#22262b}button.b.s{padding:5px 9px;font-size:13px}button.b.x{background:none;color:var(--bad);padding:5px 8px}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--ac);outline-offset:2px}
+.w{overflow-x:auto}table{border-collapse:collapse;width:100%;font-size:14px}
+th,td{text-align:left;padding:7px 8px;border-bottom:1px solid var(--bd);white-space:nowrap}th{color:var(--mut);font-weight:600;font-size:12px}
+td input{padding:5px;width:80px}
+.n{text-align:right}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:14px}
+.stat{background:var(--card);border:1px solid var(--bd);border-left:5px solid var(--ac);border-radius:8px;padding:10px 12px}
+.stat b{display:block;font:700 24px "Barlow Condensed","Arial Narrow",sans-serif}.stat span{font-size:12px;color:var(--mut)}
+.ok{color:var(--ok)}.bad{color:var(--bad)}.mut{color:var(--mut)}
+.ov{position:fixed;inset:0;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;padding:16px;z-index:10}.ov .card{max-width:420px;margin:0}
+.big{font-size:19px;padding:16px;border-radius:8px;background:var(--bg);border:2px dashed var(--bd)}
+#toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--tx);color:var(--bg);padding:10px 16px;border-radius:8px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:9}
+</style></head><body>
+<header><h1>Gym Record System</h1><span id="pill"></span></header>
+<nav id="nav"></nav><main id="app"></main><div id="toast" role="status"></div>
+<script>
+const K='gymrs1';let D=null,tab='log',per=10,pend=null,addTo=null,unlocked=false,delId=null;
+const def={members:[],plans:[{id:1,name:'Monthly',price:800,days:30},{id:2,name:'Quarterly',price:2100,days:90},{id:3,name:'Annual',price:7500,days:365}],promos:[{code:'WELCOME10',type:'%',val:10}],products:[{id:1,name:'Water 500ml',price:25,stock:50},{id:2,name:'Protein shake',price:120,stock:20}],logs:[],sales:[],expenses:[],walkin:100,status:{open:true,hours:'6:00 AM to 10:00 PM',note:''},n:10};
+try{D=JSON.parse(localStorage.getItem(K))}catch(e){}
+if(!D)D=JSON.parse(JSON.stringify(def));
+if(D.memberDaily==null)D.memberDaily=90;
+const save=()=>{try{localStorage.setItem(K,JSON.stringify(D))}catch(e){}};
+const $=s=>document.querySelector(s),v=id=>$('#'+id).value.trim();
+const today=()=>new Date().toLocaleDateString('en-CA');
+const peso=n=>'₱'+Number(n).toLocaleString('en-PH',{minimumFractionDigits:2,maximumFractionDigits:2});
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const toast=t=>{const e=$('#toast');e.textContent=t;e.style.opacity=1;clearTimeout(toast.t);toast.t=setTimeout(()=>e.style.opacity=0,2400)};
+const promo=c=>D.promos.find(p=>p.code===(c||'').toUpperCase());
+const okc=c=>{if(c&&!promo(c)){toast('Promo code "'+c+'" not found');return false}return true};
+const disc=(a,c)=>{const p=promo(c);return p?Math.min(a,p.type==='%'?a*p.val/100:p.val):0};
+const PAY='<option>Cash</option><option>Online</option>';
+const addSale=(type,desc,gross,c,pay)=>{const d=disc(gross,c);const x={date:today(),type,desc,gross,disc:d,total:gross-d,promo:d?c.toUpperCase():'',pay:pay||'Cash'};D.sales.push(x);return x};
+const addDays=(s,n)=>{const d=new Date(s+'T00:00:00');d.setDate(d.getDate()+n);return d.toLocaleDateString('en-CA')};
+const now=()=>new Date().toLocaleTimeString('en-PH',{hour:'2-digit',minute:'2-digit'});
+D.memFee==null&&(D.memFee=500);D.memDays==null&&(D.memDays=365);
+D.members.forEach(m=>{if(!m.mexp){m.mexp=addDays(today(),D.memDays);m.sub=m.plan?{plan:m.plan,exp:m.exp}:null}});
+D.logs.forEach(l=>{if(!l.id)l.id=D.n++});
+const mAct=m=>m.mexp>=today(),sAct=m=>!!m.sub&&m.sub.exp>=today();
+const sumS=p=>D.sales.filter(s=>s.date.startsWith(p)).reduce((a,s)=>a+s.total,0);
+const sumE=p=>D.expenses.filter(s=>s.date.startsWith(p)).reduce((a,s)=>a+s.amount,0);
+const T=[['log','Check-in'],['mem','Membership'],['sub','Subscriptions'],['plan','Prices & promos'],['prod','Products'],['exp','Expenses'],['rep','Sales reports'],['st','Gym status']];
+
+function fillMem(){const q=v('cs').toLowerCase(),sel=$('#cw'),cur=sel.value;
+ const ms=D.members.filter(m=>!q||(m.name+' '+(m.contact||'')).toLowerCase().includes(q));
+ sel.innerHTML='<option value="">'+(q?ms.length+' found':'Choose visitor')+'</option><option value="walk">Non-member (walk-in)</option>'+ms.map(m=>`<option value="${m.id}">${esc(m.name)}${!mAct(m)?' (membership expired)':sAct(m)?'':' (no subscription)'}</option>`).join('');
+ sel.value=q&&ms.length===1?String(ms[0].id):(cur==='walk'||ms.some(m=>String(m.id)===cur)?cur:'');upd()}
+const raw=id=>$('#'+id).value;
+async function hp(p,salt){const t=salt+p;
+ if(window.crypto&&crypto.subtle&&window.TextEncoder){const h=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(t));return Array.from(new Uint8Array(h)).map(x=>x.toString(16).padStart(2,'0')).join('')}
+ let h=5381;for(const c of t)h=(h*33)^c.charCodeAt(0);return 'x'+(h>>>0).toString(16)}
+const newSalt=()=>Math.random().toString(36).slice(2);
+async function setPw(){const a=raw('pw1');if(a.length<4)return toast('Use at least 4 characters');if(a!==raw('pw2'))return toast('The passwords do not match');
+ const salt=newSalt();D.pw={salt,hash:await hp(a,salt)};unlocked=true;save();render();toast('Password set. Editing unlocked.')}
+async function unlock(){if(await hp(raw('pu'),D.pw.salt)!==D.pw.hash)return toast('Wrong password');unlocked=true;render();toast('Editing unlocked')}
+function lock(){unlocked=false;render()}
+async function changePw(){if(await hp(raw('pc0'),D.pw.salt)!==D.pw.hash)return toast('Current password is wrong');
+ const a=raw('pw1');if(a.length<4)return toast('Use at least 4 characters');if(a!==raw('pw2'))return toast('The new passwords do not match');
+ const salt=newSalt();D.pw={salt,hash:await hp(a,salt)};save();render();toast('Password changed')}
+function lockCard(){
+ if(!D.pw)return `<div class="card"><h2>Set an editing password</h2><p class="mut">Prices, plans and promos are locked. Choose a password, then enter it each time you want to change them.</p><div class="row"><label>New password<input id="pw1" type="password" autocomplete="new-password"></label><label>Confirm password<input id="pw2" type="password" autocomplete="new-password"></label><button class="b y" onclick="setPw()">Set password and unlock</button></div></div>`;
+ if(!unlocked)return `<div class="card"><h2>Editing is locked</h2><p class="mut">Enter the password to change prices, plans and promos.</p><div class="row"><label>Password<input id="pu" type="password" autocomplete="current-password" onkeydown="if(event.key==='Enter')unlock()"></label><button class="b y" onclick="unlock()">Unlock editing</button></div></div>`;
+ return `<div class="card"><div class="row"><span class="ok" style="flex:1"><b>Editing unlocked.</b> It locks again when you leave this tab.</span><button class="b" onclick="lock()">Lock now</button></div><details style="margin-top:10px"><summary class="mut" style="cursor:pointer">Change password</summary><div class="row" style="margin-top:8px"><label>Current password<input id="pc0" type="password"></label><label>New password<input id="pw1" type="password"></label><label>Confirm new password<input id="pw2" type="password"></label><button class="b" onclick="changePw()">Change password</button></div></details></div>`}
+let cf=null;
+function showCf(){let o=$('#cfo');if(!cf){if(o)o.remove();return}
+ if(!o){o=document.createElement('div');o.id='cfo';o.className='ov';document.body.appendChild(o)}
+ o.innerHTML=`<div class="card" role="dialog" aria-modal="true"><h2>${esc(cf.title)}</h2><p>${esc(cf.text)}</p><div class="row"><button class="b" style="background:var(--bad);color:#fff" onclick="cfYes()">Yes, delete</button><button class="b" onclick="cfNo()">Cancel</button></div></div>`}
+const ask=(title,text,fn)=>{cf={title,text,fn};showCf()};
+function cfYes(){const f=cf.fn;cf=null;showCf();f();toast('Deleted')}
+function cfNo(){cf=null;showCf()}
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&cf)cfNo()});
+const askPlan=id=>ask('Delete plan?','Delete "'+D.plans.find(x=>x.id===id).name+'"? Members already subscribed keep their subscription.',()=>delPlan(id));
+const askPromo=c=>ask('Delete promo?','Delete the promo code "'+c+'"?',()=>delPromo(c));
+const askProd=id=>ask('Delete product?','Delete "'+D.products.find(x=>x.id===id).name+'" and its stock count? Past sales are kept.',()=>delProd(id));
+const askExp=i=>{const e=D.expenses[i];ask('Delete expense?','Delete the '+e.cat+' expense of '+peso(e.amount)+' on '+e.date+'? This changes the net in the reports.',()=>delExp(i))};
+function quote(){const ad=addTo&&D.logs.find(l=>l.id===addTo),w=ad?'add':v('cw'),c=v('cc2');let m=null,fee=0,label='';
+ if(w==='walk'){fee=D.walkin;label='Non-member day pass'}
+ else if(w&&w!=='add'){m=D.members.find(x=>x.id===+w);
+  if(!mAct(m)){fee=D.walkin;label='Day pass (membership expired)'}
+  else if(!sAct(m)){fee=D.memberDaily;label='Member daily rate (no active subscription)'}
+  else label='Covered by subscription'}
+ const lines=[];if(w&&w!=='add')lines.push({t:label,g:fee});
+ D.products.forEach(p=>{const q=Math.max(0,Math.floor(+v('cq'+p.id))||0);if(q)lines.push({t:q+' x '+p.name,g:p.price*q,p,q})});
+ lines.forEach(l=>{l.d=disc(l.g,c);l.n=l.g-l.d});
+ return{w,m,c,lines,total:lines.reduce((a,l)=>a+l.n,0)}}
+function upd(){const q=quote(),cash=v('cp')==='Cash'&&q.total>0,g=+v('cg')||0;
+ if($('#cnl'))$('#cnl').style.display=q.w==='walk'?'':'none';$('#cgl').style.display=cash?'':'none';
+ let h='Choose a visitor to see the total.';
+ if(q.w){h='<table>'+q.lines.map(l=>`<tr><td>${esc(l.t)}</td><td class="n">${l.d?'<s class="mut">'+peso(l.g)+'</s> ':''}${peso(l.n)}</td></tr>`).join('')+`<tr><td><b>Total to pay</b></td><td class="n"><b>${peso(q.total)}</b></td></tr></table>`;
+  if(!q.total)h+='<p class="mut" style="margin:6px 0 0">Nothing to collect.</p>';
+  else if(cash)h+='<p style="margin:8px 0 0">'+(!g?'Enter the amount given to see the change.':g>=q.total?'Change: <b class="ok">'+peso(g-q.total)+'</b>':'Short by <b class="bad">'+peso(q.total-g)+'</b>')+'</p>'}
+ $('#sum').innerHTML=h}
+function go(){const q=quote(),w=q.w,ad=addTo&&D.logs.find(l=>l.id===addTo);if(!w)return toast('Choose a visitor first');
+ let name;if(ad)name=ad.name;else if(w==='walk'){name=v('cn');if(!name)return toast('Enter the visitor name')}
+ else{name=q.m.name;if(D.logs.some(l=>l.date===today()&&l.mid===q.m.id))return toast(name+' already checked in today. Use Add purchase in the log.')}
+ if(ad&&!q.lines.length)return toast('Enter a product quantity first');
+ if(q.c&&!promo(q.c))return toast('Promo code "'+q.c+'" not found');
+ for(const l of q.lines)if(l.p&&l.p.stock<l.q)return toast('Only '+l.p.stock+' '+l.p.name+' left in stock');
+ const pay=v('cp'),g=+v('cg')||0,cash=pay==='Cash'&&q.total>0;
+ if(cash&&g<q.total)return toast('The amount given is less than the total');
+ q.lines.forEach(l=>{if(l.p){l.p.stock-=l.q;addSale('Product',l.t,l.g,q.c,pay)}else if(l.g>0)addSale('Walk-in',l.t+': '+name,l.g,q.c,pay)});
+ const paidMsg=q.total>0?'Collected '+peso(q.total)+' by '+pay+(cash?'. Change '+peso(g-q.total):''):'';
+ if(ad){const x={time:now(),t:q.lines.map(l=>l.t).join(', '),amt:q.total,pay};if(cash)x.given=g;(ad.extra=ad.extra||[]).push(x);addTo=null;save();render();return toast('Added to '+name+"'s record. "+paidMsg)}
+ const type=w==='walk'||!mAct(q.m)?'Non-member':sAct(q.m)?'Member':'Member (daily)';
+ const e={id:D.n++,date:today(),time:now(),name,type};if(q.m)e.mid=q.m.id;
+ if(q.total>0){e.amt=q.total;e.pay=pay;if(cash)e.given=g}
+ D.logs.push(e);save();render();toast('Checked in '+name+(paidMsg?'. '+paidMsg:''))}
+const age=b=>{if(!b)return '';const d=new Date(b+'T00:00:00'),n=new Date();let a=n.getFullYear()-d.getFullYear();const m=n.getMonth()-d.getMonth();if(m<0||(m===0&&n.getDate()<d.getDate()))a--;return a};
+function showAge(){$('#ma').value=age(v('mb'))}
+function setInfo(id,k,x){const m=D.members.find(y=>y.id===id);if(m[k])return toast('Already registered. This info cannot be edited.');if(k==='bday'&&x&&(age(x)<0||age(x)>120)){toast('Check the birthday. It cannot be in the future.');render();return}m[k]=x.trim();save();render()}
+function reg(){const n=v('mn'),c=v('mc'),b=v('mb');if(!n)return toast('Enter the member name');if(!b)return toast('Enter the birthday');if(age(b)<0||age(b)>120)return toast('Check the birthday. It cannot be in the future.');const nm=x=>x.toLowerCase().replace(/\s+/g,' ').trim();if(D.members.some(m=>nm(m.name)===nm(n)))return toast('A member named "'+n+'" already exists. Search for them in Membership.');if(!okc(c))return;
+ D.members.push({id:D.n++,name:n,contact:v('mt'),addr:v('mad'),bday:b,mstart:today(),mexp:addDays(today(),D.memDays),sub:null});
+ addSale('Membership','Membership: '+n,D.memFee,c,v('mpay'));save();render();toast('Member registered. They can now subscribe.')}
+function renew(id){const m=D.members.find(x=>x.id===id),c=v('rp'+id);if(!okc(c))return;
+ m.mexp=addDays(m.mexp>today()?m.mexp:today(),D.memDays);addSale('Membership','Membership renewal: '+m.name,D.memFee,c,v('rm'+id));save();render();toast('Membership valid until '+m.mexp)}
+function subscribe(){const m=D.members.find(x=>x.id===+v('sm')),p=D.plans.find(x=>x.id===+v('sp')),c=v('sc');
+ if(!m)return toast('Choose a member first');if(!p)return toast('Add a subscription plan first');
+ if(!mAct(m))return toast(m.name+' is not qualified: membership expired. Renew the membership first.');if(!okc(c))return;
+ const b=sAct(m)?m.sub.exp:today();m.sub={plan:p.name,exp:addDays(b,p.days)};
+ addSale('Subscription',p.name+': '+m.name,p.price,c,v('sy'));save();render();toast('Subscribed until '+m.sub.exp)}
+function delMem(id){D.members=D.members.filter(x=>x.id!==id);delId=null;save();render();toast('Member removed')}
+function addPlan(){if(!unlocked)return toast('Unlock editing first');const n=v('pn'),pr=+v('pp'),d=+v('pd');if(!n||!(pr>=0)||!(d>0))return toast('Enter plan name, price and days');D.plans.push({id:D.n++,name:n,price:pr,days:d});save();render()}
+function delPlan(id){if(!unlocked)return toast('Unlock editing first');D.plans=D.plans.filter(x=>x.id!==id);save();render()}
+function addPromo(){if(!unlocked)return toast('Unlock editing first');const c=v('cc').toUpperCase(),n=+v('cv');if(!c||!(n>0))return toast('Enter a code and value');D.promos=D.promos.filter(p=>p.code!==c);D.promos.push({code:c,type:v('ct'),val:n});save();render()}
+function delPromo(c){if(!unlocked)return toast('Unlock editing first');D.promos=D.promos.filter(p=>p.code!==c);save();render()}
+function setWalk(x){if(!unlocked)return toast('Unlock editing first');D.walkin=+x||0;save()}
+function addProd(){const n=v('gn'),p=+v('gp');if(!n||!(p>=0))return toast('Enter product name and price');D.products.push({id:D.n++,name:n,price:p,stock:+v('gs')||0});save();render()}
+function setStock(id,x){D.products.find(p=>p.id===id).stock=+x||0;save()}
+function delProd(id){D.products=D.products.filter(x=>x.id!==id);save();render()}
+function sell(id){const p=D.products.find(x=>x.id===id),q=+v('q'+id)||1,c=v('pc'+id);if(p.stock<q)return toast('Only '+p.stock+' left in stock');if(!okc(c))return;
+ p.stock-=q;addSale('Product',q+' x '+p.name,p.price*q,c,v('pm'+id));save();render();toast('Sold '+q+' x '+p.name)}
+function addExp(){const a=+v('ea');if(!(a>0))return toast('Enter the amount');D.expenses.push({date:v('ed')||today(),cat:v('ec'),amount:a,note:v('en')});save();render()}
+function delExp(i){D.expenses.splice(i,1);save();render()}
+function toggle(){D.status.open=!D.status.open;save();render()}
+function setSt(k,x){D.status[k]=x;save();$('#pv').innerHTML=pv();hdr()}
+function msg(){const s=D.status,d=new Date().toLocaleDateString('en-PH',{weekday:'long',month:'long',day:'numeric'});
+ return s.open?'Good day! We are OPEN today, '+d+'. Hours: '+s.hours+'.'+(s.note?' '+s.note:''):'Sorry, we are CLOSED today, '+d+'.'+(s.note?' '+s.note:'')}
+const pv=()=>esc(msg());
+function copyMsg(){try{navigator.clipboard.writeText(msg()).then(()=>toast('Message copied'),()=>toast('Copy blocked. Select the text instead.'))}catch(e){toast('Copy blocked. Select the text instead.')}}
+
+function rep(len){const m={};const g=k=>m[k]||(m[k]={Membership:0,Subscription:0,'Walk-in':0,Product:0,disc:0,exp:0,Cash:0,Online:0});
+ D.sales.forEach(s=>{const r=g(s.date.slice(0,len));r[s.type]+=s.total;r.disc+=s.disc;r[s.pay||'Cash']+=s.total});D.expenses.forEach(e=>{g(e.date.slice(0,len)).exp+=e.amount});
+ return Object.entries(m).sort((a,b)=>b[0].localeCompare(a[0]))}
+
+const V={
+log(){const t=today(),L=D.logs.filter(l=>l.date===t),ad=addTo&&D.logs.find(l=>l.id===addTo);
+ return `<div class="stats"><div class="stat"><b>${L.length}</b><span>Visitors today</span></div><div class="stat"><b>${L.filter(l=>l.type!=='Non-member').length}</b><span>Members</span></div><div class="stat"><b>${L.filter(l=>l.type==='Non-member').length}</b><span>Non-members</span></div><div class="stat"><b>${peso(sumS(t))}</b><span>Sales today</span></div><div class="stat"><b>${peso(D.sales.filter(s=>s.date===t&&(s.pay||'Cash')==='Cash').reduce((a,s)=>a+s.total,0))}</b><span>Cash today</span></div><div class="stat"><b>${peso(D.sales.filter(s=>s.date===t&&s.pay==='Online').reduce((a,s)=>a+s.total,0))}</b><span>Online today</span></div></div>
+ <div class="card"><h2>${ad?'Add purchase for '+esc(ad.name):'Check-in and purchases'}</h2>
+ <div class="row">${ad?'':`<label>Search member<input id="cs" placeholder="Type a name or contact" oninput="fillMem()" autocomplete="off"></label><label>Visitor<select id="cw" onchange="upd()"><option value="">Choose visitor</option><option value="walk">Non-member (walk-in)</option>${D.members.map(m=>`<option value="${m.id}">${esc(m.name)}${!mAct(m)?' (membership expired)':sAct(m)?'':' (no subscription)'}</option>`).join('')}</select></label><label id="cnl" style="display:none">Visitor name<input id="cn"></label>`}<label>Promo code<input id="cc2" placeholder="optional" oninput="upd()"></label></div>
+ <h2 style="margin-top:14px;font-size:17px">Products bought (optional)</h2>
+ <div class="w"><table>${D.products.map(p=>`<tr><td>${esc(p.name)}</td><td class="n">${peso(p.price)}</td><td class="mut">${p.stock} in stock</td><td><input id="cq${p.id}" type="number" min="0" value="0" oninput="upd()"></td></tr>`).join('')||'<tr><td class="mut">No products yet. Add them in the Products tab.</td></tr>'}</table></div>
+ <div class="big" id="sum" style="margin:12px 0"></div>
+ <div class="row"><label>Payment<select id="cp" onchange="upd()">${PAY}</select></label><label id="cgl">Amount given<input id="cg" type="number" min="0" oninput="upd()"></label><button class="b y" onclick="go()">${ad?'Add purchase and collect':'Check in and collect'}</button>${ad?'<button class="b" onclick="addTo=null;render()">Cancel</button>':''}</div></div>
+ <div class="card"><h2>Today's log</h2><div class="w"><table><tr><th>Time</th><th>Name</th><th>Type</th><th class="n">Amount paid</th><th>Payment</th><th class="n">Cash given</th><th class="n">Change</th><th></th></tr>${L.length?L.slice().reverse().map(l=>`<tr><td>${l.time}</td><td>${esc(l.name)}</td><td>${l.type}</td><td class="n">${l.amt!=null?peso(l.amt):'-'}</td><td>${l.pay||'Covered by subscription'}</td><td class="n">${l.given!=null?peso(l.given):'-'}</td><td class="n">${l.given!=null?peso(l.given-l.amt):'-'}</td><td><button class="b s" onclick="addTo=${l.id};render();scrollTo(0,0)">Add purchase</button></td></tr>`+(l.extra||[]).map(x=>`<tr><td>${x.time}</td><td colspan=2 class="mut">+ ${esc(x.t)}</td><td class="n">${peso(x.amt)}</td><td>${x.pay}</td><td class="n">${x.given!=null?peso(x.given):'-'}</td><td class="n">${x.given!=null?peso(x.given-x.amt):'-'}</td><td></td></tr>`).join('')).join(''):'<tr><td colspan=8 class="mut">No visitors yet. Check someone in above.</td></tr>'}</table></div></div>
+ <div class="card"><h2>Past days</h2><div class="w"><table><tr><th>Date</th><th class="n">Members</th><th class="n">Non-members</th></tr>${[...new Set(D.logs.map(l=>l.date))].filter(d=>d!==t).sort().reverse().slice(0,14).map(d=>{const x=D.logs.filter(l=>l.date===d);return `<tr><td>${d}</td><td class="n">${x.filter(l=>l.type!=='Non-member').length}</td><td class="n">${x.filter(l=>l.type==='Non-member').length}</td></tr>`}).join('')||'<tr><td colspan=3 class="mut">No earlier logs.</td></tr>'}</table></div></div>`},
+mem(){return `${delId&&D.members.find(x=>x.id===delId)?(m=>`<div class="ov"><div class="card"><h2>Remove ${esc(m.name)}?</h2><p>This deletes their membership and subscription record. Past sales and check-in logs are kept.</p><div class="row"><button class="b" style="background:var(--bad);color:#fff" onclick="delMem(${m.id})">Yes, remove</button><button class="b" onclick="delId=null;render()">Cancel</button></div></div></div>`)(D.members.find(x=>x.id===delId)):''}<div class="card"><h2>Register new member</h2><p class="mut">Membership fee ${peso(D.memFee)}, valid ${D.memDays} days. Members pay the ${peso(D.memberDaily)} daily rate and can take a subscription.</p><div class="row"><label>Name<input id="mn"></label><label>Contact<input id="mt"></label><label>Birthday<input id="mb" type="date" oninput="showAge()"></label><label style="max-width:80px">Age<input id="ma" readonly placeholder="auto"></label><label>Address<input id="mad"></label><label>Promo code<input id="mc" placeholder="optional"></label><label>Payment<select id="mpay">${PAY}</select></label><button class="b y" onclick="reg()">Register and collect</button></div></div>
+ <div class="card"><h2>Members (${D.members.length})</h2><div class="w"><table><tr><th>Name</th><th>Contact</th><th>Address</th><th>Birthday</th><th class="n">Age</th><th>Membership</th><th>Valid until</th><th>Renew membership</th><th></th></tr>${D.members.length?D.members.map(m=>`<tr><td>${esc(m.name)}</td><td>${esc(m.contact||'')}</td><td>${m.addr?esc(m.addr):`<input placeholder="add address" style="width:150px" onchange="setInfo(${m.id},'addr',this.value)">`}</td><td>${m.bday||`<input type="date" style="width:140px" onchange="setInfo(${m.id},'bday',this.value)">`}</td><td class="n">${m.bday?age(m.bday):'-'}</td><td class="${mAct(m)?'ok':'bad'}">${mAct(m)?'Active':'Expired'}</td><td>${m.mexp}</td><td><input id="rp${m.id}" placeholder="promo"> <select id="rm${m.id}" style="width:auto">${PAY}</select> <button class="b s" onclick="renew(${m.id})">Renew</button></td><td><button class="b x" onclick="delId=${m.id};render()">Remove</button></td></tr>`).join(''):'<tr><td colspan=9 class="mut">No members yet. Register the first one above.</td></tr>'}</table></div></div>`},
+sub(){return `<div class="card"><h2>Subscribe a member</h2><p class="mut">Only members with an active membership can subscribe. Subscribers check in free.</p><div class="row"><label>Member<select id="sm"><option value="">Choose member</option>${D.members.map(m=>`<option value="${m.id}" ${mAct(m)?'':'disabled'}>${esc(m.name)}${mAct(m)?'':' (membership expired, not eligible)'}</option>`).join('')}</select></label><label>Plan<select id="sp">${D.plans.map(p=>`<option value="${p.id}">${esc(p.name)} (${peso(p.price)}, ${p.days} days)</option>`).join('')}</select></label><label>Promo code<input id="sc" placeholder="optional"></label><label>Payment<select id="sy">${PAY}</select></label><button class="b y" onclick="subscribe()">Subscribe and collect</button></div></div>
+ <div class="card"><h2>Subscriptions</h2><div class="w"><table><tr><th>Member</th><th>Plan</th><th>Valid until</th><th>Status</th></tr>${D.members.filter(m=>m.sub).map(m=>`<tr><td>${esc(m.name)}</td><td>${esc(m.sub.plan)}</td><td>${m.sub.exp}</td><td class="${sAct(m)?'ok':'bad'}">${sAct(m)?'Active':'Expired'}</td></tr>`).join('')||'<tr><td colspan=4 class="mut">No subscriptions yet. Register a member, then subscribe them.</td></tr>'}</table></div></div>`},
+plan(){return `${lockCard()}<fieldset ${unlocked?'':'disabled'} style="border:0;padding:0;margin:0;min-width:0"><div class="card"><h2>Subscription plans (members only)</h2><div class="w"><table><tr><th>Plan</th><th class="n">Price</th><th class="n">Days</th><th></th></tr>${D.plans.map(p=>`<tr><td>${esc(p.name)}</td><td class="n">${peso(p.price)}</td><td class="n">${p.days}</td><td><button class="b x" onclick="askPlan(${p.id})">Delete</button></td></tr>`).join('')}</table></div>
+ <div class="row" style="margin-top:10px"><label>Plan name<input id="pn"></label><label>Price<input id="pp" type="number" min="0"></label><label>Days valid<input id="pd" type="number" min="1"></label><button class="b y" onclick="addPlan()">Add plan</button></div></div>
+ <div class="card"><h2>Membership and daily prices</h2><div class="row"><label>Membership fee<input type="number" min="0" value="${D.memFee}" onchange="D.memFee=+this.value||0;save()"></label><label>Membership valid (days)<input type="number" min="1" value="${D.memDays}" onchange="D.memDays=+this.value||365;save()"></label><label>Non-member<input type="number" min="0" value="${D.walkin}" onchange="setWalk(this.value)"></label><label>Member daily rate<input type="number" min="0" value="${D.memberDaily}" onchange="D.memberDaily=+this.value||0;save()"></label></div></div>
+ <div class="card"><h2>Discounts and promos</h2><div class="w"><table><tr><th>Code</th><th>Discount</th><th></th></tr>${D.promos.map(p=>`<tr><td>${esc(p.code)}</td><td>${p.type==='%'?p.val+'% off':peso(p.val)+' off'}</td><td><button class="b x" onclick="askPromo('${esc(p.code)}')">Delete</button></td></tr>`).join('')||'<tr><td colspan=3 class="mut">No promos yet.</td></tr>'}</table></div>
+ <div class="row" style="margin-top:10px"><label>Code<input id="cc"></label><label>Type<select id="ct"><option value="%">Percent (%)</option><option value="₱">Fixed amount</option></select></label><label>Value<input id="cv" type="number" min="0"></label><button class="b y" onclick="addPromo()">Save promo</button></div></div></fieldset>`},
+prod(){return `<div class="card"><h2>Sell products</h2><div class="w"><table><tr><th>Product</th><th class="n">Price</th><th>Stock</th><th>Qty</th><th>Promo</th><th>Payment</th><th></th><th></th></tr>${D.products.map(p=>`<tr><td>${esc(p.name)}</td><td class="n">${peso(p.price)}</td><td><input type="number" min="0" value="${p.stock}" onchange="setStock(${p.id},this.value)"></td><td><input id="q${p.id}" type="number" min="1" value="1"></td><td><input id="pc${p.id}" placeholder="optional"></td><td><select id="pm${p.id}" style="width:auto">${PAY}</select></td><td><button class="b s y" onclick="sell(${p.id})">Sell</button></td><td><button class="b x" onclick="askProd(${p.id})">Delete</button></td></tr>`).join('')||'<tr><td colspan=8 class="mut">No products yet. Add one below.</td></tr>'}</table></div></div>
+ <div class="card"><h2>Add product</h2><div class="row"><label>Name<input id="gn"></label><label>Price<input id="gp" type="number" min="0"></label><label>Stock<input id="gs" type="number" min="0"></label><button class="b y" onclick="addProd()">Add product</button></div></div>`},
+exp(){return `<div class="card"><h2>Record expense</h2><div class="row"><label>Date<input id="ed" type="date" value="${today()}"></label><label>Category<select id="ec">${['Rent','Utilities','Salaries','Equipment','Maintenance','Supplies','Other'].map(c=>`<option>${c}</option>`).join('')}</select></label><label>Amount<input id="ea" type="number" min="0"></label><label>Note<input id="en"></label><button class="b y" onclick="addExp()">Save expense</button></div></div>
+ <div class="card"><h2>Expenses</h2><div class="w"><table><tr><th>Date</th><th>Category</th><th>Note</th><th class="n">Amount</th><th></th></tr>${D.expenses.map((e,i)=>[e,i]).sort((a,b)=>b[0].date.localeCompare(a[0].date)).slice(0,60).map(([e,i])=>`<tr><td>${e.date}</td><td>${e.cat}</td><td>${esc(e.note)}</td><td class="n">${peso(e.amount)}</td><td><button class="b x" onclick="askExp(${i})">Delete</button></td></tr>`).join('')||'<tr><td colspan=5 class="mut">No expenses recorded.</td></tr>'}</table></div></div>`},
+rep(){const t=today(),c=(l,p)=>`<div class="stat"><span>${l}</span><b>${peso(sumS(p))}</b><span>Expenses ${peso(sumE(p))} · Net <span class="${sumS(p)-sumE(p)<0?'bad':'ok'}">${peso(sumS(p)-sumE(p))}</span></span></div>`;
+ return `<div class="stats">${c('Today',t)}${c('This month',t.slice(0,7))}${c('This year',t.slice(0,4))}</div>
+ <div class="card"><div class="row"><h2 style="flex:1">Sales report</h2><label style="max-width:180px">View by<select onchange="per=+this.value;render()"><option value="10" ${per===10?'selected':''}>Daily</option><option value="7" ${per===7?'selected':''}>Monthly</option><option value="4" ${per===4?'selected':''}>Yearly</option></select></label></div>
+ <div class="w"><table><tr><th>Period</th><th class="n">Memberships</th><th class="n">Subscriptions</th><th class="n">Day passes</th><th class="n">Products</th><th class="n">Discounts given</th><th class="n">Cash</th><th class="n">Online</th><th class="n">Sales</th><th class="n">Expenses</th><th class="n">Net</th></tr>${rep(per).map(([k,r])=>{const s=r.Membership+r.Subscription+r['Walk-in']+r.Product;return `<tr><td>${k}</td><td class="n">${peso(r.Membership)}</td><td class="n">${peso(r.Subscription)}</td><td class="n">${peso(r['Walk-in'])}</td><td class="n">${peso(r.Product)}</td><td class="n">${peso(r.disc)}</td><td class="n">${peso(r.Cash)}</td><td class="n">${peso(r.Online)}</td><td class="n"><b>${peso(s)}</b></td><td class="n">${peso(r.exp)}</td><td class="n ${s-r.exp<0?'bad':'ok'}"><b>${peso(s-r.exp)}</b></td></tr>`}).join('')||'<tr><td colspan=11 class="mut">No sales or expenses yet.</td></tr>'}</table></div></div>`},
+st(){const s=D.status;return `<div class="card"><h2>Is the gym open today?</h2><div class="row"><button class="b ${s.open?'':'y'}" onclick="toggle()">${s.open?'Mark as closed today':'Mark as open today'}</button></div>
+ <div class="row" style="margin-top:10px"><label>Opening hours<input value="${esc(s.hours)}" oninput="setSt('hours',this.value)"></label><label>Extra note (holiday, maintenance)<input value="${esc(s.note)}" oninput="setSt('note',this.value)"></label></div></div>
+ <div class="card"><h2>Message for gym goers</h2><div class="big" id="pv">${pv()}</div><div class="row" style="margin-top:10px"><button class="b y" onclick="copyMsg()">Copy message</button></div><p class="mut">Paste it into Messenger, SMS or a group chat. Data is saved in this browser only.</p></div>`}};
+
+function hdr(){$('#pill').innerHTML=`<span class="pill ${D.status.open?'o':'c'}">${D.status.open?'Open today':'Closed today'}</span>`}
+function render(){if(tab!=='plan')unlocked=false;hdr();$('#nav').innerHTML=T.map(([k,l])=>`<button class="${k===tab?'on':''}" onclick="tab='${k}';render()">${l}</button>`).join('');$('#app').innerHTML=V[tab]();if(tab==='log')upd()}
+render();
+</script></body></html>
